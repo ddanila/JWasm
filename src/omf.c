@@ -106,32 +106,34 @@ extern void SortSegments( int );
 //extern struct qdesc LinnumQueue;    /* v2.21: moved to ModuleInfo */
 extern const char szNull[];
 
-/* LastCodeBufSize stores the size of the code buffer AFTER it has been written in omf_write_ledata().
- * This allows to get the content bytes for the listing.
- * This is a rather hackish "design" and is to be improved.
- */
-int_32       LastCodeBufSize;
-
-static uint_32    seg_pos;        /* file pos of SEGDEF record(s) */
-static uint_32    public_pos;     /* file pos of PUBDEF record(s) */
-static uint_32    end_of_header;  /* file pos of "end of header"  */
-
-/* v2.12: moved from inside omf_write_lnames() */
-static int startitem;
-static int startext;
-
-#if MULTIHDR
-static unsigned ln_srcfile;      /* last file for which line numbers have been written */
-#endif
-static uint_8 ln_is32;           /* last mode for which line numbers have been written */
-static uint_16 ln_size;          /* size of line number info */
-
 /* CodeView symbolic debug info */
 enum dbgseg_index {
     DBGS_SYMBOLS,
     DBGS_TYPES,
     DBGS_MAX
 };
+
+/* LastCodeBufSize stores the size of the code buffer AFTER it has been written in omf_write_ledata().
+ * This allows to get the content bytes for the listing.
+ * This is a rather hackish "design" and is to be improved.
+ */
+int_32       LastCodeBufSize;
+
+struct omfmod_s {
+    uint_32    seg_pos;       /* file pos of SEGDEF record(s) */
+    uint_32    public_pos;    /* file pos of PUBDEF record(s) */
+    uint_32    end_of_header; /* file pos of "end of header"  */
+    int startitem;            /* v2.12: moved from inside omf_write_lnames() */
+    int startext;             /* v2.12: moved from inside omf_write_lnames() */
+    struct dsym *SymDebSeg[DBGS_MAX];
+#if MULTIHDR
+    unsigned ln_srcfile;      /* last file for which line numbers have been written */
+#endif
+    uint_16 ln_size;          /* size of line number info */
+    uint_8 ln_is32;           /* last mode for which line numbers have been written */
+};
+
+static struct omfmod_s omfmod;
 
 struct dbg_section {
     const char *name;
@@ -142,8 +144,6 @@ static const struct dbg_section SymDebParm[DBGS_MAX] = {
     { "$$SYMBOLS", "DEBSYM" },
     { "$$TYPES",   "DEBTYP" },
 };
-
-static struct dsym *SymDebSeg[DBGS_MAX];
 
 static void omf_InitRec( struct omf_rec *obj, uint_8 command )
 /************************************************************/
@@ -446,7 +446,7 @@ static void omf_write_ledata( struct dsym *seg )
                 TruncRec( &obj );
                 omf_write_record( &obj );
                 if ( seg->e.seginfo->seg_idx == 0 )
-                    seg->e.seginfo->seg_idx = startext++;
+                    seg->e.seginfo->seg_idx = omfmod.startext++;
             }
 
             omf_InitRec( &obj, CMD_COMDAT );
@@ -506,8 +506,8 @@ void omf_FlushCurrSeg( void )
     /* add line numbers if debugging info is desired */
     //if( write_to_file && Options.line_numbers ) {
     if( Options.line_numbers ) {
-        omf_write_linnum( ln_is32 );
-        ln_size = 0;
+        omf_write_linnum( omfmod.ln_is32 );
+        omfmod.ln_size = 0;
     }
     //if ( Options.no_comment_data_in_code_records == FALSE )
     //    omf_OutSelect( FALSE );
@@ -559,14 +559,14 @@ void omf_check_flush( const struct line_num_info *curr )
     uint_8 is_32;
     uint_16 size;
 #if MULTIHDR
-    if ( curr->srcfile != ln_srcfile ) {
+    if ( curr->srcfile != omfmod.ln_srcfile ) {
         if ( ModuleInfo.g.LinnumQueue.head )
             omf_FlushCurrSeg();
         /* todo: for Borland, there's a COMENT ( CMT_SRCFILE ) that could be written
          * instead of THEADR.
          */
         omf_write_theadr( GetFName( curr->srcfile )->fname );
-        ln_srcfile = curr->srcfile;
+        omfmod.ln_srcfile = curr->srcfile;
         return;
     }
 #endif
@@ -574,10 +574,10 @@ void omf_check_flush( const struct line_num_info *curr )
      * do flush ( Masm compatible ).
      */
     is_32 = ( curr->offset > 0xffff ? TRUE : FALSE );
-    if ( ln_is32 != is_32 ) {
+    if ( omfmod.ln_is32 != is_32 ) {
         if ( ModuleInfo.g.LinnumQueue.head )
             omf_FlushCurrSeg();
-        ln_is32 = is_32;
+        omfmod.ln_is32 = is_32;
         return;
     }
     /* line number item consists of 16-bit line# and 16- or 32-bit offset */
@@ -585,11 +585,11 @@ void omf_check_flush( const struct line_num_info *curr )
     /* if the size of the linnum data exceeds 1016,
      * do flush ( Masm compatible ).
      */
-    if ( ln_size + size > 1024 - 8 ) {
+    if ( omfmod.ln_size + size > 1024 - 8 ) {
         if ( ModuleInfo.g.LinnumQueue.head )
             omf_FlushCurrSeg();
     }
-    ln_size += size;
+    omfmod.ln_size += size;
     return;
 };
 
@@ -616,10 +616,10 @@ static void omf_end_of_pass1( void )
 void omf_set_filepos( void )
 /**************************/
 {
-    DebugMsg1(( "omf_set_filepos: reset file pos to %X\n", end_of_header ));
+    DebugMsg1(( "omf_set_filepos: reset file pos to %X\n", omfmod.end_of_header ));
 #if MULTIHDR
 #endif
-    fseek( CurrFile[OBJ], end_of_header, SEEK_SET );
+    fseek( CurrFile[OBJ], omfmod.end_of_header, SEEK_SET );
 }
 
 static void omf_write_dosseg( void )
@@ -937,7 +937,7 @@ static void omf_write_lnames( void )
     p = buffer;
     *p++ = NULLC; /* start with the NULL entry */
     items = 1;
-    startitem = 1;
+    omfmod.startitem = 1;
 
     for ( curr = ModuleInfo.g.LnameQueue.head; ; curr = curr->next ) {
         //sym = GetLnameData( &pv );
@@ -952,11 +952,11 @@ static void omf_write_lnames( void )
                  * written to the LNAMES record!
                  * In fact, they aren't used at all.
                  */
-                obj.d.lnames.first_idx = startitem;
+                obj.d.lnames.first_idx = omfmod.startitem;
                 obj.d.lnames.num_names = items;
                 AttachData( &obj, buffer, size );
                 omf_write_record( &obj );
-                startitem = items;
+                omfmod.startitem = items;
             }
             if ( sym == NULL )
                 break;
@@ -1410,7 +1410,7 @@ static ret_code omf_write_pubdef( void )
                 struct dsym *seg = (struct dsym *)sym->segment;
                 if ( seg->e.seginfo->comdat_idx == 0 ) {
                     struct omf_rec obj;
-                    seg->e.seginfo->comdat_idx = ++startitem;
+                    seg->e.seginfo->comdat_idx = ++omfmod.startitem;
                     seg->sym.referenced = sym->referenced;
                     omf_InitRec( &obj, CMD_LNAMES );
                     len = Mangle( sym, StringBufferEnd + 1 );
@@ -1550,9 +1550,9 @@ static void omf_write_header_dbgcv( void )
     AttachData( &obj, (uint_8 *)"\001CV", 3 );
     omf_write_record( &obj );
     for ( i = 0; i < DBGS_MAX; i++ ) {
-        if ( SymDebSeg[i] = (struct dsym *)CreateIntSegment( SymDebParm[i].name, SymDebParm[i].cname, 0, USE32, TRUE ) ) {
-            SymDebSeg[i]->e.seginfo->force32 = TRUE; /* without this a 32-bit segdef is emitted only if segsize > 64kB */
-            SymDebSeg[i]->e.seginfo->flushfunc = omf_cv_flushfunc;
+        if ( omfmod.SymDebSeg[i] = (struct dsym *)CreateIntSegment( SymDebParm[i].name, SymDebParm[i].cname, 0, USE32, TRUE ) ) {
+            omfmod.SymDebSeg[i]->e.seginfo->force32 = TRUE; /* without this a 32-bit segdef is emitted only if segsize > 64kB */
+            omfmod.SymDebSeg[i]->e.seginfo->flushfunc = omf_cv_flushfunc;
         }
     }
     return;
@@ -1563,10 +1563,10 @@ static void omf_write_header_dbgcv( void )
 static void omf_write_debug_tables( void )
 /****************************************/
 {
-    if ( SymDebSeg[DBGS_SYMBOLS] && SymDebSeg[DBGS_TYPES] ) {
-        SymDebSeg[DBGS_SYMBOLS]->e.seginfo->CodeBuffer = (uint_8 *)CurrSource;
-        SymDebSeg[DBGS_TYPES]->e.seginfo->CodeBuffer = (uint_8 *)CurrSource + 1024;
-        cv_write_debug_tables( SymDebSeg[DBGS_SYMBOLS], SymDebSeg[DBGS_TYPES], NULL );
+    if ( omfmod.SymDebSeg[DBGS_SYMBOLS] && omfmod.SymDebSeg[DBGS_TYPES] ) {
+        omfmod.SymDebSeg[DBGS_SYMBOLS]->e.seginfo->CodeBuffer = (uint_8 *)CurrSource;
+        omfmod.SymDebSeg[DBGS_TYPES]->e.seginfo->CodeBuffer = (uint_8 *)CurrSource + 1024;
+        cv_write_debug_tables( omfmod.SymDebSeg[DBGS_SYMBOLS], omfmod.SymDebSeg[DBGS_TYPES], NULL );
     }
 }
 
@@ -1622,12 +1622,12 @@ static ret_code omf_write_module( struct module_info *modinfo )
     /* write SEGDEF records. Since these records contain the segment's length,
      * the records have to be written again after the final assembly pass.
      */
-    fseek( CurrFile[OBJ] , seg_pos, SEEK_SET );
+    fseek( CurrFile[OBJ] , omfmod.seg_pos, SEEK_SET );
     omf_write_segdef();
     /* write PUBDEF records. Since the final value of offsets isn't known after
      * the first pass, this has to be called again after the final pass.
      */
-    fseek( CurrFile[OBJ], public_pos, SEEK_SET);
+    fseek( CurrFile[OBJ], omfmod.public_pos, SEEK_SET);
     omf_write_pubdef();
     return( NOT_ERROR );
 }
@@ -1666,17 +1666,17 @@ static ret_code omf_write_header_initial( struct module_info *modinfo )
      * the records have to be written again after the final assembly pass.
      * hence the start position of those records has to be saved.
      */
-    seg_pos = ftell( CurrFile[OBJ] );
+    omfmod.seg_pos = ftell( CurrFile[OBJ] );
     omf_write_segdef();
     omf_write_grpdef(); /* write GRPDEF records */
     ext_idx = omf_write_extdef(); /* write EXTDEF records */
-    startext = omf_write_comdef( ext_idx ); /* write COMDEF records */
+    omfmod.startext = omf_write_comdef( ext_idx ); /* write COMDEF records */
     omf_write_alias(); /* write ALIAS records */
 
     /* write PUBDEF records. Since the final value of offsets isn't known after
      * the first pass, this has to be called again after the final pass.
      */
-    public_pos = ftell( CurrFile[OBJ] );
+    omfmod.public_pos = ftell( CurrFile[OBJ] );
     omf_write_pubdef();
     omf_write_export(); /* write export COMENT records */
 
@@ -1685,10 +1685,11 @@ static ret_code omf_write_header_initial( struct module_info *modinfo )
      * the TIS OMF spec v1.1. warns that this
      * comment record is NOT to be present if
      * the MODEND record contains a starting address!
+     * However, Masm (v6.15+) suppresses writing this record in more cases!
      */
     if ( !modinfo->g.start_fixup )
         omf_end_of_pass1();
-    end_of_header = ftell( CurrFile[OBJ] );
+    omfmod.end_of_header = ftell( CurrFile[OBJ] );
     return( NOT_ERROR );
 }
 
@@ -1700,11 +1701,11 @@ void omf_init( struct module_info *modinfo )
     DebugMsg(("omf_init enter\n"));
     modinfo->g.WriteModule = omf_write_module;
     modinfo->g.Pass1Checks = omf_write_header_initial;
-    SymDebSeg[DBGS_SYMBOLS] = NULL;
-    SymDebSeg[DBGS_TYPES] = NULL;
+    omfmod.SymDebSeg[DBGS_SYMBOLS] = NULL;
+    omfmod.SymDebSeg[DBGS_TYPES] = NULL;
 #if MULTIHDR
-    ln_srcfile = modinfo->srcfile;
+    omfmod.ln_srcfile = modinfo->srcfile;
 #endif
-    ln_size = 0;
+    omfmod.ln_size = 0;
     return;
 }

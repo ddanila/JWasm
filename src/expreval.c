@@ -918,7 +918,9 @@ static void MakeConst( struct expr *opnd )
         else
             return;
         /* assume a value != 0 to avoid problems with div */
-        opnd->value = 1;
+        /* v2.21: ensure that highvalue is ok */
+        //opnd->value = 1;
+        opnd->llvalue = 1;
     }
 
     opnd->label_tok = NULL;
@@ -1732,10 +1734,10 @@ static ret_code (* const unaryop[])( int, struct expr *, struct expr *, struct a
 static ret_code plus_op( struct expr *opnd1, struct expr *opnd2 )
 /***************************************************************/
 {
-    DebugMsg1(("plus_op: kind=%d/%d memtype=%Xh-%Xh value=%d-%d sym=%s-%s mbr=%s-%s type=%s-%s\n",
-               opnd1->kind, opnd2->kind,
+    DebugMsg1(("%u plus_op: kind=%d-%d memtype=%Xh-%Xh value=0x%" I64_SPEC "X-0x%" I64_SPEC "X sym=%s-%s mbr=%s-%s type=%s-%s\n",
+               evallvl, opnd1->kind, opnd2->kind,
                opnd1->mem_type, opnd2->mem_type, 
-               opnd1->value, opnd2->value,
+               opnd1->llvalue, opnd2->llvalue,
                opnd1->sym ? opnd1->sym->name : "NULL",
                opnd2->sym ? opnd2->sym->name : "NULL",
                opnd1->mbr ? opnd1->mbr->name : "NULL",
@@ -2771,20 +2773,23 @@ static ret_code calculate( struct expr *opnd1, struct expr *opnd2, const struct 
          * The only formats allowed are:
          *        constant / constant
          */
-        DebugMsg1(("calculate(/): kind=%u-%u sign=%u-%u value=%" I64_SPEC "d - %" I64_SPEC "d\n",
-                   opnd1->kind,    opnd2->kind,
+        DebugMsg1(("%u calculate(/): kind=%u-%u sign=%u-%u value=0x%" I64_SPEC "X-0x%" I64_SPEC "X\n",
+                   evallvl, opnd1->kind,    opnd2->kind,
                    opnd1->is_signed,opnd2->is_signed,
                    opnd1->value64, opnd2->value64 ));
         MakeConst( opnd1 );
         MakeConst( opnd2 );
-
+#if 1
+        DebugMsg1(("%u calculate(/): after MakeConst() value=0x%" I64_SPEC "X-0x%" I64_SPEC "X\n",
+                   evallvl, opnd1->value64, opnd2->value64 ));
+#endif
         if( check_same( opnd1, opnd2, EXPR_CONST ) == FALSE ) {
-            DebugMsg(("calculate(/) error 1\n"));
+            DebugMsg(("calculate(/) error - incompatible types\n"));
             return( ConstError( opnd1, opnd2 ) );
         }
 
         if ( opnd2->llvalue == 0 ) {
-            DebugMsg(("calculate(/) error 2\n"));
+            DebugMsg(("calculate(/) error - op2 is zero\n"));
             return( fnEmitErr( DIVIDE_BY_ZERO_IN_EXPR ) );
         }
 

@@ -22,7 +22,7 @@
       tinycode.asm.
    -  TYPE operator: returned values != 0 for certain constants defined with
       EQU; see types18.asm.
-   -  ALIAS directive: alias name wasn't decorated reliably.
+   -  ALIAS directive: alias name wasn't decorated reliably; see alias3.asm.
 
    Other changes:
    -  format elf: cmdline option -Zd (dwarf line numbers) supported (limited
