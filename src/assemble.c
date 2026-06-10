@@ -1059,6 +1059,13 @@ static int OnePass( void )
 
     ClearSrcStack();
 
+#ifdef DEBUG_OUT
+# if 0 /* activate to detect certain memory leaks */
+    printf("OnePass(%u), ", Parse_Pass + 1);
+    MemStat();
+# endif
+#endif
+
     return( 1 );
 }
 
@@ -1546,8 +1553,8 @@ int EXPQUAL AssembleModule( const char *source )
     if ( ( Parse_Pass > PASS_1 ) && write_to_file )
         WriteModule( &ModuleInfo );
 
-    if ( ModuleInfo.pCodeBuff ) {
-        LclFree( ModuleInfo.pCodeBuff );
+    if ( ModuleInfo.g.pCodeBuff ) {
+        LclFree( ModuleInfo.g.pCodeBuff );
     }
     DebugMsg(("AssembleModule: finished, cleanup\n"));
 

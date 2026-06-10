@@ -183,6 +183,14 @@ void MemFini( void )
 #endif
 }
 
+#ifdef DEBUG_OUT
+void MemStat( void )
+/******************/
+{
+    printf( "memory used: %u kB\n", (blocks * BLKSIZE - currfree) / 1024 );
+}
+#endif
+
 void *LclAlloc( size_t size )
 /***************************/
 {

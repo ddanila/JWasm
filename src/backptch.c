@@ -64,6 +64,7 @@ static void DoPatch( struct asym *sym, struct fixup *fixup )
               fixup->locofs,
               fixup->option,
               fixup->def_seg ? fixup->def_seg->sym.name : "NULL" ));
+
     seg = GetSegm( sym );
     if( seg == NULL || fixup->def_seg != seg ) {
         /* if fixup location is in another segment, backpatch is possible, but
@@ -246,7 +247,9 @@ ret_code BackPatch( struct asym *sym )
 #endif
 		DebugMsg1(("BackPatch(%s): location=%s:%" I32_SPEC "X, bp_fixup=%p\n", sym->name, sym->segment ? sym->segment->name : "!NULL!", sym->offset, sym->bp_fixup ));
 		for( fixup = sym->bp_fixup; fixup; fixup = fixup->nextbp )
-			DoPatch( sym, fixup );
+			/* v2.21: skip non-backpatch fixups */
+			if ( fixup->option != OPTJ_NONE ) /* a jmp/jxx/call/push instruction? */
+				DoPatch( sym, fixup );
 #ifdef DEBUG_OUT
 		if ( oldofs != sym->offset )
 			DebugMsg1(("BackPatch(%s) exit, new ofs=%X\n", sym->name, sym->offset ));

@@ -739,6 +739,7 @@ struct module_vars {
     /* v2.10: moved here from module_info due to problems if @@: occured on the very first line */
     unsigned            anonymous_label; /* "anonymous label" counter */
     struct dsym         *flat_grp;       /* magic FLAT group; v2.19: moved to module_vars */
+    uint_8              *pCodeBuff;      /* v2.21: pCodeBuff moved to struct module_vars! */
 #if STACKBASESUPP
     struct asym         *StackBase;
     struct asym         *ProcStatus;
@@ -838,7 +839,7 @@ struct module_info {
     unsigned            srcfile;         /* main source file - is an index for FNames[] */
     struct dsym         *currseg;        /* currently active segment */
     //struct dsym         *flat_grp;       /* magic FLAT group; v2.19: moved to module_vars */
-    uint_8              *pCodeBuff;
+    //uint_8              *pCodeBuff;    /* v2.21: pCodeBuff must be in struct module_vars! */
     unsigned int        GeneratedCode;   /* nesting level generated code */
     /* input members */
     char                *currsource;     /* current source line */

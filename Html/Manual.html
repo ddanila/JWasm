@@ -1907,7 +1907,7 @@ _DATA                           C      10C        12        12
       directive ), their names are not decorated. Also, if format is COFF, they won't become true publics,
       they're just included in the symbol table with class "static".
 </TD><TD>-</TD></TR>
-<TR BGCOLOR="#E0E0E0"><TD>21</TD><TD>in 16-bit code, Masm will accept opcode "mov ax,es:[10000h]" although
+<TR BGCOLOR="#E8E8E8"><TD>21</TD><TD>in 16-bit code, Masm will accept opcode "mov ax,es:[10000h]" although
       offset 10000h exceeds 16-bit ( it will be truncated to 16-bit ). JWasm emits a level 3 warning and
       the offset is NOT truncated.
 </TD><TD>-</TD></TR>
@@ -1915,16 +1915,19 @@ _DATA                           C      10C        12        12
       size 0 for segment _BSS (.DATA?) if an EVEN directive is positioned at the very start of this segment.
       This causes the linker to add the segment to the binary, bloating it with trailing 0x00 bytes.
 </TD><TD>-</TD></TR>
-<TR BGCOLOR="#E0E0E0"><TD>23</TD><TD>Masm's MOD operator will return wrong results if one of the operands
+<TR BGCOLOR="#E8E8E8"><TD>23</TD><TD>Masm's MOD operator will return wrong results if one of the operands
       is negative.
 </TD><TD>-</TD></TR>
 <TR BGCOLOR="#E0E0E0"><TD>24</TD><TD>the 32-bit variant of Masm has problems with 64-bit math. If a 64-bit
       number is used in an expression, the lower 32 bits of that number may "get lost" - that is, the number
       is shifted 32 bits to the right.
 </TD><TD>-</TD></TR>
-<TR BGCOLOR="#E0E0E0"><TD>25</TD><TD>the .TINY model directive will make Masm reject using the SEG operator;
+<TR BGCOLOR="#E8E8E8"><TD>25</TD><TD>the .TINY model directive will make Masm reject using the SEG operator;
       emits Error "Cannot have segment address references with TINY model". Error also occurs if predefined
       symbol @code is used.
+</TD><TD>-</TD></TR>
+<TR BGCOLOR="#E0E0E0"><TD>26</TD><TD>the .STACK directive in memory models tiny/small/medium will make Masm
+      add the stack segment to DGROUP even if the FARSTACK qualifier has been set in the .MODEL directive.
 </TD><TD>-</TD></TR>
 </TABLE>
     It's slightly dangerous to fix old Masm bugs, since some code might

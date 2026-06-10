@@ -1548,10 +1548,11 @@ void SegmentFini( void )
 #endif
 
 #if FASTMEM==0
-	/* v2.19: release fixups to heap */
+	/* v2.19: move segment related fixups to fixup heap */
 	for( curr = SymTables[TAB_SEG].head; curr; curr = curr->next )
 		if ( curr->e.seginfo->FixupList.head ) FixupRelease( curr->e.seginfo->FixupList.head );
 
+	/* free all items in the fixup heap */
 	for ( fixup = ModuleInfo.g.FixupHeap; fixup; fixup = tmp ) {
 		tmp = fixup->nextrlc;
 		LclFree( fixup );
@@ -1563,7 +1564,7 @@ void SegmentFini( void )
 	}
 #endif
 	FreeLnameQueue();
-    DebugMsg(("SegmentFini() exit\n"));
+	DebugMsg(("SegmentFini() exit\n"));
 }
 
 /* init. called for each pass */
@@ -1622,7 +1623,7 @@ void SegmentInit( int pass )
      * alloc a buffer for the contents
      */
 
-    if ( ModuleInfo.pCodeBuff == NULL && Options.output_format != OFORMAT_OMF ) {
+    if ( ModuleInfo.g.pCodeBuff == NULL && Options.output_format != OFORMAT_OMF ) {
         for( curr = SymTables[TAB_SEG].head, buffer_size = 0; curr; curr = curr->next ) {
             if ( curr->e.seginfo->internal )
                 continue;
@@ -1641,8 +1642,8 @@ void SegmentInit( int pass )
             }
         }
         if ( buffer_size ) {
-            ModuleInfo.pCodeBuff = LclAlloc( buffer_size );
-            DebugMsg(("SegmentInit(%u): total buffer size=%" I32_SPEC "X, start=%p\n", pass, buffer_size, ModuleInfo.pCodeBuff ));
+            ModuleInfo.g.pCodeBuff = LclAlloc( buffer_size );
+            DebugMsg(("SegmentInit(%u): total buffer size=%" I32_SPEC "X, start=%p\n", pass, buffer_size, ModuleInfo.g.pCodeBuff ));
         }
     }
     /* Reset length of all segments to zero.
@@ -1650,10 +1651,10 @@ void SegmentInit( int pass )
      */
 #if FASTMEM==0
     /* fastmem clears the memory blocks, but malloc() won't */
-    if ( ModuleInfo.pCodeBuff )
-        memset( ModuleInfo.pCodeBuff, 0, buffer_size );
+    if ( ModuleInfo.g.pCodeBuff )
+        memset( ModuleInfo.g.pCodeBuff, 0, buffer_size );
 #endif
-    for( curr = SymTables[TAB_SEG].head, p = (char *)ModuleInfo.pCodeBuff; curr; curr = curr->next ) {
+    for( curr = SymTables[TAB_SEG].head, p = (char *)ModuleInfo.g.pCodeBuff; curr; curr = curr->next ) {
         curr->e.seginfo->current_loc = 0;
         if ( curr->e.seginfo->internal )
             continue;

@@ -33,6 +33,9 @@
 
 extern void MemInit( void );
 extern void MemFini( void );
+#ifdef DEBUG_OUT
+extern void MemStat( void );
+#endif
 extern void *MemAlloc( size_t size );
 extern void *MemRealloc( void *ptr, size_t size );
 extern void MemFree( void *ptr );

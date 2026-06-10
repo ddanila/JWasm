@@ -49,9 +49,11 @@
 #include "input.h"
 #include "linnum.h"
 
-#define TRUNCATE 1
-#define MULTIHDR 1     /* write muliple THEADR records (Masm compatible) */
+#define TRUNCATE 1     /* std=1, 1=truncate module (in case it becomes shorter) */
+#define MULTIHDR 1     /* std=1, 1=write muliple THEADR records (Masm compatible) */
 #define WRITEIMPDEF 0  /* write IMPDEF coment records for OPTION DLLIMPORT */
+#define EXTENSIONCMT 0  /* std=0, 1=always write omf ext coment */
+#define TRANSLATORCMT 0 /* std=0, 1=write assembler version coment */
 
 #define MANGLE_BYTES 8 /* extra size required for name decoration */
 #define MAX_ID_LEN_OMF 247
@@ -59,6 +61,9 @@
 #define MAX_EXT_LENGTH 1020 /* max length ( in chars ) of EXTDEF */
 #define MAX_PUB_LENGTH 1024 /* max length of PUBDEF record */
 
+#if TRANSLATORCMT
+#include "msgtext.h"
+#endif
 
 #if TRUNCATE
 #if defined(__UNIX__) || defined(__CYGWIN__) || defined(__DJGPP__)
@@ -1532,6 +1537,33 @@ static uint_8 *omf_cv_flushfunc( struct dsym *seg, uint_8 *curr, unsigned size, 
     return( curr );
 }
 
+#if TRANSLATORCMT
+void omf_write_translator_coment( void )
+/**************************************/
+{
+    struct omf_rec obj;
+    omf_InitRec( &obj, CMD_COMENT );
+    obj.d.coment.attr = 0x00;
+    obj.d.coment.cmt_class = CMT_LANGUAGE_TRANS; /* language translator coment */
+    AttachData( &obj, (uint_8 *)MsgGetEx( MSG_JWASM ), strlen( MsgGetEx( MSG_JWASM) ) );
+    omf_write_record( &obj );
+    return;
+}
+#endif
+
+#if EXTENSIONCMT
+void omf_write_ext_coment( void )
+/*******************************/
+{
+    struct omf_rec obj;
+    omf_InitRec( &obj, CMD_COMENT );
+    obj.d.coment.attr = 0x00;
+    obj.d.coment.cmt_class = CMT_MS_OMF; /* MS extensions present */
+    omf_write_record( &obj );
+    return;
+}
+#endif
+
 /*
  * If -Zi is set, a comment class
  * A1 record (MS extensions present) is written.
@@ -1649,9 +1681,16 @@ static ret_code omf_write_header_initial( struct module_info *modinfo )
     }
 
     omf_write_theadr( CurrFName[ASM] ); /* write THEADR record, main src filename */
+#if TRANSLATORCMT
+    omf_write_translator_coment();
+#endif
     /* v2.11: coment record "ms extensions present" now written here */
     if ( Options.debug_symbols ) /* -Zi option set? */
         omf_write_header_dbgcv();
+#if EXTENSIONCMT
+    else
+        omf_write_header_ext();
+#endif
     /* if( Options.no_dependencies == FALSE ) */
     if( Options.line_numbers )
         omf_write_autodep(); /* write dependency COMENT records ( known by Borland & OW ) */

@@ -265,7 +265,7 @@ enum {
  * - CMT_LINKER_DIRECTIVE : wlink specials
  */
 enum omf_comment_classes {
-    //CMT_LANGUAGE_TRANS  = 0x00, /* Language translator comment          */
+    CMT_LANGUAGE_TRANS  = 0x00, /* Language translator comment          */
     //CMT_INTEL_COPYRIGHT = 0x01, /* INTEL Copyright record               */
     //CMT_MS_PADDING      = 0x01, /* Microsoft uses this for padding      */
     //CMT_WAT_PROC_MODEL  = 0x9b, /* Watcom processor & model info        */

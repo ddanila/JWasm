@@ -61,6 +61,10 @@ struct fixup *FixupCreate( struct asym *sym, enum fixup_types type, enum fixup_o
  * put the correct target offset into the link list when forward reference of
  * relocatable is resolved;
  * Global vars Frame_Type and Frame_Datum "should" be set.
+ *
+ * Note: in pass 1, only "backpatch fixups" are needed ( for jmp/call/push instructions )
+ * however, it's not possible to simply return NULL - the fixup is checked for NULL
+ * by the parser in set_rm_sib() to determine the value of the rm byte!
  */
 {
     struct fixup     *fixup;
@@ -119,6 +123,15 @@ struct fixup *FixupCreate( struct asym *sym, enum fixup_types type, enum fixup_o
                sym ? sym->name : "NULL", type, option, fixup, ++cnt, fixup->locofs, fixup->frame_type, fixup->frame_datum, CurrSeg ? CurrSeg->sym.name : "NULL" ));
     return( fixup );
 }
+
+/* put a fixup queue into the fixup heap;
+ * it's either a segment fixup queue or the fixup for the label behind the END directive ( OMF only )
+ * called by:
+ * - SegmentInit()
+ * - SegmentFini() [ only if FASTMEM == 0 - the fixups will then be freed ]
+ * - EndDirective() - the fixup for the start label - OMF only
+ * - omf_write_ledata() - the fixups of the just written LEDATA record
+ */
 
 void FixupRelease( struct fixup *fixup )
 /**************************************/
