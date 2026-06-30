@@ -31,6 +31,7 @@ $(OUTD)/invoke.obj   \
 $(OUTD)/label.obj    \
 $(OUTD)/linnum.obj   \
 $(OUTD)/listing.obj  \
+$(OUTD)/logmsg.obj   \
 $(OUTD)/loop.obj     \
 $(OUTD)/lqueue.obj   \
 $(OUTD)/macro.obj    \

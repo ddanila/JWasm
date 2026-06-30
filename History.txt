@@ -23,6 +23,10 @@
    -  TYPE operator: returned values != 0 for certain constants defined with
       EQU; see types18.asm.
    -  ALIAS directive: alias name wasn't decorated reliably; see alias3.asm.
+   -  non-OMF formats: code buffer was allocated in each pass, causing memory
+      leaks.
+   -  fixed GPF in jwasm: assembling MOV instruction with destination of type
+      prototype, but without pointer type definition; see pproc.asm.
 
    Other changes:
    -  format elf: cmdline option -Zd (dwarf line numbers) supported (limited

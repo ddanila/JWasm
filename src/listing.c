@@ -671,7 +671,7 @@ static const char *GetMemtypeString( const struct asym *sym, char *buffer )
     //case MT_ABS: /* v2.07: MT_ABS is obsolete */
     case MT_EMPTY: /* number, via EQU or = directive */
         return( strings[LS_NUMBER] );
-#ifdef DEBUG_OUT /* v2.11: obsolete */
+#ifdef DEBUG_OUT /* v2.11: obsolete; v2.21: apparently not obsolete - see PPROC.ASM */
     case MT_PROC:
         printf("GetMemtypeString: found mem_type=MT_PROC for sym=%s\n", sym->name );
         break;

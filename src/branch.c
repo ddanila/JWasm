@@ -393,7 +393,7 @@ ret_code process_branch( struct code_info *CodeInfo, unsigned CurrOpnd, const st
 
     DebugMsg1(("process_branch: fixup needed\n" ));
 
-    fixup_option = OPTJ_JMP;
+    fixup_option = OPTJ_JMPS;
     fixup_type = FIX_RELOFF8;
 
     mem_type = opndx->mem_type;
@@ -505,7 +505,7 @@ ret_code process_branch( struct code_info *CodeInfo, unsigned CurrOpnd, const st
              */
             CodeInfo->opnd[OPND1].type = OP_I8;
             fixup_type = FIX_RELOFF8;
-            fixup_option = (opndx->instr == T_SHORT) ? OPTJ_EXPLICIT : OPTJ_JMP;
+            fixup_option = (opndx->instr == T_SHORT) ? OPTJ_EXPLICIT : OPTJ_JMPS;
             break;
         case MT_NEAR:
             fixup_option = OPTJ_EXPLICIT;

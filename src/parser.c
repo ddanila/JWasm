@@ -1514,13 +1514,15 @@ static ret_code memory_operand( struct code_info *CodeInfo, unsigned CurrOpnd, s
             opndx->Ofssize = GetSymOfssize( sym );
         /* v2.09: use opndx->type ( for MT_PROC ) */
         //size = SizeFromMemtype( opndx->mem_type, opndx->Ofssize, NULL );
-        size = SizeFromMemtype( opndx->mem_type, opndx->Ofssize, opndx->type );
+        /* v2.21: check opndx->type; if it's NULL then assume that sym is a type; see pproc.asm */
+        //size = SizeFromMemtype( opndx->mem_type, opndx->Ofssize, opndx->type );
+        size = SizeFromMemtype( opndx->mem_type, opndx->Ofssize, opndx->type ? opndx->type : sym );
         MemtypeFromSize( size, &opndx->mem_type );
     }
 
     Set_Memtype( CodeInfo, opndx->mem_type );
     if( opndx->mbr != NULL ) {
-        /* if the struct field is just another struct, use it's total size
+        /* if the struct field is just another struct, use its total size
          * to set CodeInfo->mem_type.
          */
         //if ( opndx->mbr->mem_type == MT_TYPE ) {

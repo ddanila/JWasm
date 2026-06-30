@@ -1528,7 +1528,6 @@ int EXPQUAL AssembleModule( const char *source )
         rewind( CurrFile[ASM] );
         if ( write_to_file && Options.output_format == OFORMAT_OMF )
             omf_set_filepos();
-
     } /* end for() */
 #ifdef DEBUG_OUT
     /* display items still in the "undefined" queue.

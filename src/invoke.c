@@ -1643,6 +1643,10 @@ ret_code InvokeDirective( int i, struct asm_tok tokenarray[] )
         if ( sym == NULL ) {
             return( EmitErr( INVOKE_REQUIRES_PROTOTYPE ) );
         }
+    } else if ( sym->mem_type == MT_PROC ) {  /* v2.21: added; see pproc.asm */
+        sym = sym->target_type;
+        if ( sym == NULL )
+            return( EmitErr( INVOKE_REQUIRES_PROTOTYPE ) );
     } else {
         DebugMsg(("InvokeDir: error, sym=%s state=%u memtype=%Xh [type=%s memtype=%Xh]\n",
                   sym->name, sym->state, sym->mem_type,
@@ -1650,7 +1654,7 @@ ret_code InvokeDirective( int i, struct asm_tok tokenarray[] )
                   sym->type ? sym->type->mem_type : 0));
 #ifdef DEBUG_OUT
         if ( sym->mem_type == MT_PTR || sym->mem_type == MT_PROC )
-            DebugMsg(("InvokeDir: error, target_type=%s [memtype=%X pmemtype=%X isproc=%u])\n",
+            DebugMsg(("InvokeDir: error, target_type=%s [memtype=%X pmemtype=%X isproc=%u]\n",
                       sym->target_type->name,
                       sym->target_type->mem_type,
                       sym->target_type->ptr_memtype,

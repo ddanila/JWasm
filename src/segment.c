@@ -1623,6 +1623,7 @@ void SegmentInit( int pass )
      * alloc a buffer for the contents
      */
 
+    /* v2.21: to fix a memory leak, pCodeBuff was moved to struct module_vars in ModuleInfo */
     if ( ModuleInfo.g.pCodeBuff == NULL && Options.output_format != OFORMAT_OMF ) {
         for( curr = SymTables[TAB_SEG].head, buffer_size = 0; curr; curr = curr->next ) {
             if ( curr->e.seginfo->internal )
@@ -1646,14 +1647,18 @@ void SegmentInit( int pass )
             DebugMsg(("SegmentInit(%u): total buffer size=%" I32_SPEC "X, start=%p\n", pass, buffer_size, ModuleInfo.g.pCodeBuff ));
         }
     }
-    /* Reset length of all segments to zero.
-     * set start of segment buffers.
-     */
-#if FASTMEM==0
+#if FASTMEM /* v2.21: added; and condition of next #if changed to 1 */
+    else
+#endif
+
+#if 1 //FASTMEM==0
     /* fastmem clears the memory blocks, but malloc() won't */
     if ( ModuleInfo.g.pCodeBuff )
         memset( ModuleInfo.g.pCodeBuff, 0, buffer_size );
 #endif
+    /* Reset length of all segments to zero.
+     * set start of segment buffers.
+     */
     for( curr = SymTables[TAB_SEG].head, p = (char *)ModuleInfo.g.pCodeBuff; curr; curr = curr->next ) {
         curr->e.seginfo->current_loc = 0;
         if ( curr->e.seginfo->internal )

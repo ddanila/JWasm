@@ -32,6 +32,7 @@ $(OUTD)/invoke.o   \
 $(OUTD)/label.o    \
 $(OUTD)/linnum.o   \
 $(OUTD)/listing.o  \
+$(OUTD)/logmsg.o   \
 $(OUTD)/loop.o     \
 $(OUTD)/lqueue.o   \
 $(OUTD)/macro.o    \

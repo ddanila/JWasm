@@ -75,22 +75,22 @@ enum fixup_types {
 #endif
 
 /* fixups are also used for backpatching of forward references in pass one.
- * the instructions which depend on the distance are CALL, JMP, PUSH <imm>.
+ * the instructions which depend on the distance are CALL, JMP, Jcc, PUSH <imm>.
  * OPTJ_EXPLICIT: JMP SHORT <label> or Jcc SHORT <label>, size cannot change
- * OPTJ_EXTEND:   Jcc <label> for cpu < 80386, size may change (2 -> 5/7 or 8/10)
- * OPTJ_JXX:      Jcc <label> for cpu >= 80386, size may change (2 -> 5 )
- * OPTJ_CALL:     call <label>, may become push cs, call NEAR or call FAR
- * OPTJ_PUSH:     push <label>, assumed byte, may become variable or label.
+ * OPTJ_EXTEND:   Jcc <label> for cpu < 80386, size may change (2 -> 5)
+ * OPTJ_JXX:      Jcc <label> for cpu >= 80386, size may change (2 -> 4/6)
+ * OPTJ_CALL:     call NEAR <label>, may become a) push cs & call NEAR or b) call FAR
+ * OPTJ_PUSH:     push BYTE <label>, size may change (2 -> 3/5)
  */
 
 enum fixup_options {
-        OPTJ_NONE,     /* no jmp/call/push */
-        OPTJ_JMP,      /* normal jump */
-        OPTJ_EXPLICIT,
-        OPTJ_EXTEND,
-        OPTJ_JXX,
-        OPTJ_CALL,
-        OPTJ_PUSH      /* PUSH */
+        OPTJ_NONE,     /* 0 no jmp/call/push */
+        OPTJ_JMPS,     /* 1 Jmp short */
+        OPTJ_EXPLICIT, /* 2 */
+        OPTJ_EXTEND,   /* 3 Jcc for 8086/186/286 */
+        OPTJ_JXX,      /* 4 Jcc for 80386/... */
+        OPTJ_CALL,     /* 5 */
+        OPTJ_PUSH      /* 6 */
 };
 
 struct fixup {
