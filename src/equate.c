@@ -66,7 +66,17 @@ static void SetValue( struct asym *sym, struct expr *opndx )
          */
         //sym->mem_type = MT_ABS;
         //sym->mem_type = opndx->mem_type;
-        sym->mem_type = opndx->explicit ? opndx->mem_type : MT_EMPTY;
+        /* MASM preserves the declared type when a constant EQU aliases a
+         * structure member.  This matters for expressions such as
+         *
+         *     serial_field EQU boot_record.serial
+         *     mov cx, TYPE serial_field
+         *
+         * where the member is a DD and TYPE must consequently yield 4.
+         * Keep ordinary untyped constant equates empty, as required by the
+         * v2.21 TYPE-equate compatibility change.
+         */
+        sym->mem_type = ( opndx->explicit || opndx->mbr ) ? opndx->mem_type : MT_EMPTY;
         sym->uvalue = opndx->uvalue;
         sym->value3264 = opndx->hvalue;
         sym->segment = NULL;
