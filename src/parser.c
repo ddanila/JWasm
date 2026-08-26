@@ -1534,6 +1534,15 @@ static ret_code memory_operand( struct code_info *CodeInfo, unsigned CurrOpnd, s
             DebugMsg1(("memory_operand: mbr %s has mem_type MT_TYPE, total_size=%u\n", opndx->mbr->name, opndx->mbr->total_size ));
             if ( MemtypeFromSize( opndx->mbr->total_size, &mem_type ) == NOT_ERROR )
                 Set_Memtype( CodeInfo, mem_type );
+        } else if ( opndx->mem_type == MT_EMPTY &&
+                    opndx->mbr->mem_type != MT_EMPTY ) {
+            /* An indexed structure-member expression may retain the member
+             * symbol while losing its scalar type.  MASM 5.1 still uses the
+             * member type for instruction selection; for example,
+             * "cmp [bx][di].tag, 1" must be a byte comparison when tag is DB.
+             * Do not override an explicit or otherwise inferred operand size.
+             */
+            Set_Memtype( CodeInfo, opndx->mbr->mem_type );
         }
         //else  /* v2: obsolete */
         //    Set_Memtype( CodeInfo, opndx->mbr->mem_type );

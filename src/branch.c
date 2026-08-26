@@ -301,8 +301,16 @@ ret_code process_branch( struct code_info *CodeInfo, unsigned CurrOpnd, const st
             //    CodeInfo->mem_type = MT_NEAR;
             //}
             DebugMsg(("process_branch: CI.memtype=%Xh addr=%Xh\n", CodeInfo->mem_type, addr ));
+            /* MASM 5.1 keeps an implicit forward JMP near.  Old structured
+             * macro packages depend on that three-byte size when they emit
+             * constructs such as "Jcc $+5 / JMP label".  Shrinking the JMP
+             * to short makes the first branch land in the middle of the JMP
+             * (or of the following instruction).
+             */
             if( CodeInfo->mem_type != MT_NEAR && CodeInfo->token != T_CALL &&
-                ( addr >= SCHAR_MIN && addr <= SCHAR_MAX ) ) {
+                ( addr >= SCHAR_MIN && addr <= SCHAR_MAX ) &&
+                !( ModuleInfo.m510 && CodeInfo->token == T_JMP &&
+                   opndx->instr != T_SHORT && sym->offset > GetCurrOffset() ) ) {
                 CodeInfo->opnd[OPND1].type = OP_I8;
             } else {
                 if ( opndx->instr == T_SHORT || ( IS_XCX_BRANCH( CodeInfo->token ) ) ) {
@@ -503,9 +511,21 @@ ret_code process_branch( struct code_info *CodeInfo, unsigned CurrOpnd, const st
             /* forward reference
              * default distance is short, we will expand later if needed
              */
-            CodeInfo->opnd[OPND1].type = OP_I8;
-            fixup_type = FIX_RELOFF8;
-            fixup_option = (opndx->instr == T_SHORT) ? OPTJ_EXPLICIT : OPTJ_JMPS;
+            if ( ModuleInfo.m510 && opndx->instr != T_SHORT ) {
+                /* MASM 5.1 emits an implicit forward JMP as NEAR. */
+                fixup_option = OPTJ_EXPLICIT;
+                if( CodeInfo->Ofssize > USE16 ) {
+                    fixup_type = FIX_RELOFF32;
+                    CodeInfo->opnd[OPND1].type = OP_I32;
+                } else {
+                    fixup_type = FIX_RELOFF16;
+                    CodeInfo->opnd[OPND1].type = OP_I16;
+                }
+            } else {
+                CodeInfo->opnd[OPND1].type = OP_I8;
+                fixup_type = FIX_RELOFF8;
+                fixup_option = (opndx->instr == T_SHORT) ? OPTJ_EXPLICIT : OPTJ_JMPS;
+            }
             break;
         case MT_NEAR:
             fixup_option = OPTJ_EXPLICIT;

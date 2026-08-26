@@ -1808,6 +1808,17 @@ static ret_code plus_op( struct expr *opnd1, struct expr *opnd2 )
                 opnd1->instr = opnd2->instr;
         }
         opnd1->llvalue += opnd2->llvalue;
+        /* Preserve the scalar member selected by an indexed expression such
+         * as [bx][di].field.  The dot expression is combined with the first
+         * register as an address before the complete memory operand reaches
+         * the parser; dropping mbr/mem_type here makes an 8-bit DB member
+         * look unsized and can select a 16-bit instruction encoding.
+         */
+        if ( opnd2->mbr ) {
+            opnd1->mbr = opnd2->mbr;
+            if ( opnd1->mem_type == MT_EMPTY )
+                opnd1->mem_type = opnd2->mem_type;
+        }
         /* v2.08: added, test case [ecx+ebx.<struc>].<mbr> */
         if ( opnd2->type )
             opnd1->type = opnd2->type;
