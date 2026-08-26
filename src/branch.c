@@ -511,7 +511,8 @@ ret_code process_branch( struct code_info *CodeInfo, unsigned CurrOpnd, const st
             /* forward reference
              * default distance is short, we will expand later if needed
              */
-            if ( ModuleInfo.m510 && opndx->instr != T_SHORT ) {
+            if ( ModuleInfo.m510 && CodeInfo->token == T_JMP &&
+                 opndx->instr != T_SHORT ) {
                 /* MASM 5.1 emits an implicit forward JMP as NEAR. */
                 fixup_option = OPTJ_EXPLICIT;
                 if( CodeInfo->Ofssize > USE16 ) {
