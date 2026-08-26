@@ -1170,6 +1170,19 @@ ret_code PublicDirective( int i, struct asm_tok tokenarray[] )
                     return( ERROR ); /* invalid name? */
             }
             skipitem = FALSE;
+
+            /* CASEMAP:NOTPUBLIC preserves the spelling of public and
+             * external names while keeping symbol lookup case-insensitive.
+             * If the symbol was first seen as a label, its stored spelling
+             * may differ from the later PUBLIC declaration.  MASM uses the
+             * PUBLIC spelling in OMF; doing otherwise creates an unresolved
+             * external when another module uses that spelling.
+             */
+            if ( sym && ModuleInfo.case_sensitive == FALSE &&
+                ModuleInfo.convert_uppercase == FALSE &&
+                sym->name_size == strlen( token ) ) {
+                memcpy( sym->name, token, sym->name_size + 1 );
+            }
         } else {
             if ( sym == NULL || sym->state == SYM_UNDEFINED ) {
                 EmitErr( SYMBOL_NOT_DEFINED, token );
