@@ -374,7 +374,16 @@ static int omf_set_logref( const struct fixup *fixup, struct logref *lr )
             }
         }
 
-        if( fixup->frame_type != FRAME_NONE ) {  /* types: 0=SEG,1=GRP ..., 6=NONE [internal only] */
+        if( sym->state == SYM_EXTERNAL &&
+            ( fixup->frame_type == FRAME_NONE || fixup->frame_type == FRAME_TARG ) ) {
+            /* MASM retains the external symbol as the frame for an external
+             * offset whose source has no more specific ASSUME frame.  Using
+             * FRAME_TARG is normally equivalent, but lets a linker select a
+             * containing group instead of the member segment.  That changes
+             * 16-bit offsets in legacy groups spanning more than 64 KiB. */
+            lr->frame_meth = FRAME_EXT;
+            lr->frame_datum = lr->target_datum;
+        } else if( fixup->frame_type != FRAME_NONE ) {  /* types: 0=SEG,1=GRP ..., 6=NONE [internal only] */
             lr->frame_meth = (uint_8)fixup->frame_type;
         } else {
             lr->frame_meth = FRAME_TARG;
@@ -389,7 +398,8 @@ static int omf_set_logref( const struct fixup *fixup, struct logref *lr )
      * will be optimized.
     */
 
-    if( lr->frame_meth == ( lr->target_meth - TARGET_SEG ) ) {
+    if( lr->target_meth != TARGET_EXT &&
+        lr->frame_meth == ( lr->target_meth - TARGET_SEG ) ) {
         DebugMsg1(("omf_set_logref: fixup optimized, frame_meth=%u, target_meth=%u\n", lr->frame_meth, lr->target_meth ));
         lr->frame_meth = FRAME_TARG; /* frame same as target */
     }

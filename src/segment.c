@@ -49,6 +49,8 @@
 #include "myassert.h"
 
 extern ret_code    EndstructDirective( int, struct asm_tok tokenarray[] );
+extern int_8       Frame_Type;
+extern uint_16     Frame_Datum;
 
 //struct asym  symPC = { NULL,"$", 0 };  /* the '$' symbol */
 struct asym  *symCurSeg;     /* @CurSeg symbol */
@@ -1453,7 +1455,9 @@ void SortSegments( int type )
     bool changed = TRUE;
     bool swap;
     struct dsym *curr;
-    //int index = 1;
+    int index;
+    uint_16 *seg_index_map;
+    struct fixup *fixup;
 #if PE_SUPPORT
     char *name1;
     char *name2;
@@ -1510,10 +1514,28 @@ void SortSegments( int type )
         }
     }
 
-    /* v2.7: don't change segment indices! They're stored in fixup.frame_datum */
-    //for ( curr = SymTables[TAB_SEG].head; curr ; curr = curr->next ) {
-    //    curr->e.seginfo->seg_idx = index++;
-    //}
+    /* OMF assigns segment indices in SEGDEF emission order.  .ALPHA changes
+     * that order after pass one, when backpatch fixups may already contain
+     * raw segment indices. Renumber both the symbols and saved frame data. */
+    if ( type == 1 ) {
+        seg_index_map = LclAlloc( ( ModuleInfo.g.num_segs + 1 ) * sizeof( *seg_index_map ) );
+        memset( seg_index_map, 0, ( ModuleInfo.g.num_segs + 1 ) * sizeof( *seg_index_map ) );
+        index = 1;
+        for ( curr = SymTables[TAB_SEG].head; curr; curr = curr->next )
+            seg_index_map[curr->e.seginfo->seg_idx] = index++;
+        for ( curr = SymTables[TAB_SEG].head; curr; curr = curr->next ) {
+            for ( fixup = curr->e.seginfo->FixupList.head; fixup; fixup = fixup->nextrlc ) {
+                if ( fixup->frame_type == FRAME_SEG )
+                    fixup->frame_datum = seg_index_map[fixup->frame_datum];
+            }
+            curr->e.seginfo->seg_idx = seg_index_map[curr->e.seginfo->seg_idx];
+        }
+        if ( ModuleInfo.g.start_fixup != NULL && ModuleInfo.g.start_fixup->frame_type == FRAME_SEG )
+            ModuleInfo.g.start_fixup->frame_datum = seg_index_map[ModuleInfo.g.start_fixup->frame_datum];
+        if ( Frame_Type == FRAME_SEG )
+            Frame_Datum = seg_index_map[Frame_Datum];
+        LclFree( seg_index_map );
+    }
 }
 
 /* END directive has been found. */
