@@ -29,6 +29,9 @@
 ****************************************************************************/
 
 #include <ctype.h>
+#if defined(__UNIX__)
+#include <dirent.h>
+#endif
 //#include <stdarg.h> /* v2.12: removed - was necessary for _splitpath()/_makepath() */
 
 #include "globals.h"
@@ -76,6 +79,92 @@ struct src_item {
 
 /* v2.11: introduced a list of unused src_items */
 static struct src_item *SrcFree;
+
+#if defined(__UNIX__)
+/* DOS and MASM resolve source/include paths case-insensitively. In M510 mode,
+ * reproduce that behavior on case-sensitive Unix hosts instead of requiring a
+ * generated shadow tree containing lowercase aliases. */
+static FILE *fopen_m510( const char *path, const char *mode, char *actual )
+/*************************************************************************/
+{
+    FILE *file = fopen( path, mode );
+    char work[FILENAME_MAX];
+    char resolved[FILENAME_MAX];
+    char *part;
+    char *next;
+
+    if ( file || Options.masm51_compat == FALSE || strlen( path ) >= FILENAME_MAX ) {
+        if ( file && actual )
+            strcpy( actual, path );
+        return( file );
+    }
+    strcpy( work, path );
+    for ( part = work; *part; part++ )
+        if ( *part == '\\' )
+            *part = '/';
+    resolved[0] = NULLC;
+    part = work;
+    if ( *part == '/' ) {
+        strcpy( resolved, "/" );
+        part++;
+    }
+    while ( *part ) {
+        DIR *directory;
+        struct dirent *entry;
+        const char *match = NULL;
+        char search[FILENAME_MAX];
+        size_t used;
+
+        next = strchr( part, '/' );
+        if ( next )
+            *next = NULLC;
+        if ( *part == NULLC || strcmp( part, "." ) == 0 || strcmp( part, ".." ) == 0 ) {
+            match = part;
+        } else {
+            strcpy( search, resolved[0] ? resolved : "." );
+            directory = opendir( search );
+            if ( directory ) {
+                while ( entry = readdir( directory ) ) {
+                    if ( _stricmp( entry->d_name, part ) == 0 ) {
+                        match = entry->d_name;
+                        break;
+                    }
+                }
+                if ( match ) {
+                    char found[FILENAME_MAX];
+                    strcpy( found, match );
+                    closedir( directory );
+                    match = found;
+                    used = strlen( resolved );
+                    if ( used && resolved[used-1] != '/' )
+                        strcat( resolved, "/" );
+                    strcat( resolved, match );
+                } else {
+                    closedir( directory );
+                    return( NULL );
+                }
+            } else {
+                return( NULL );
+            }
+        }
+        if ( match == part ) {
+            used = strlen( resolved );
+            if ( used && resolved[used-1] != '/' )
+                strcat( resolved, "/" );
+            strcat( resolved, part );
+        }
+        if ( !next )
+            break;
+        part = next + 1;
+    }
+    file = fopen( resolved, mode );
+    if ( file && actual )
+        strcpy( actual, resolved );
+    return( file );
+}
+#else
+#define fopen_m510(path, mode, actual) fopen(path, mode)
+#endif
 
 #define src_stack  ModuleInfo.g.src_stack
 
@@ -579,7 +668,7 @@ static FILE *open_file_in_include_path( const char *name, char fullpath[] )
         strcpy( fullpath+i, name );
 
         DebugMsg(("open_file_in_include_path: >%s<\n", fullpath ));
-        file = fopen( fullpath, "rb" );
+        file = fopen_m510( fullpath, "rb", fullpath );
         if( file ) {
             break;
         }
@@ -633,7 +722,7 @@ FILE *SearchFile( const char *path, bool queue )
                      */
                     memcpy( fullpath, src, i );
                     strcpy( fullpath + i, path );
-                    if ( file = fopen( fullpath, "rb" ) ) {
+                    if ( file = fopen_m510( fullpath, "rb", fullpath ) ) {
                         DebugMsg1(("SearchFile(): file found, fopen(%s)=%X\n", fullpath, file ));
                         path = fullpath;
                     }
@@ -648,7 +737,9 @@ FILE *SearchFile( const char *path, bool queue )
     }
     if ( file == NULL ) {
         fullpath[0] = NULLC;
-        file = fopen( path, "rb" );
+        file = fopen_m510( path, "rb", fullpath );
+        if ( file )
+            path = fullpath;
         DebugMsg1(("SearchFile(): fopen(%s)=%X\n", path, file ));
 
         /* if the file isn't found yet and include paths have been set,

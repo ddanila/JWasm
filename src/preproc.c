@@ -32,6 +32,111 @@ int_32 cntppl1;    /* count preprocessed lines 2 */
 int_32 cntppl2;    /* count lines NOT handled by preprocessor */
 #endif
 
+static int EqualCasePrefix( const char *left, const char *right, size_t length )
+/****************************************************************************/
+{
+    while ( length-- ) {
+        if ( toupper( (unsigned char)*left++ ) != toupper( (unsigned char)*right++ ) )
+            return( FALSE );
+    }
+    return( TRUE );
+}
+
+/* MASM 5.10 treats whitespace as an argument separator for the structured
+ * macro package used by the MS-DOS sources. JWasm normally separates macro
+ * arguments on commas only. Do this compatibility normalization before
+ * tokenization so OPTION M510/-Zm can consume those sources directly.
+ *
+ * This deliberately applies only to the dotted structured-macro names. Their
+ * definitions use "name MACRO" and are excluded. Ordinary macros retain the
+ * documented comma-separated JWasm behavior.
+ */
+static void NormalizeMasm51StructuredArgs( char *line )
+/********************************************************/
+{
+    static const char * const names[] = {
+        "IF", "ELSEIF", "WHILE", "UNTIL", "WHEN", "LEAVE", "FOR"
+    };
+    char *p = line;
+    char *args;
+    char *q;
+    int depth = 0;
+    int seen[2] = { FALSE, FALSE };
+    unsigned int i;
+
+    if ( Options.masm51_compat == FALSE )
+        return;
+    while ( isspace( *p ) )
+        p++;
+    /* Accept an optional same-line code label. */
+    q = p;
+    if ( is_valid_id_first_char( *q ) ) {
+        while ( is_valid_id_char( *q ) )
+            q++;
+        while ( isspace( *q ) )
+            q++;
+        if ( *q == ':' ) {
+            p = q + 1;
+            while ( isspace( *p ) )
+                p++;
+        }
+    }
+    if ( *p++ != '.' )
+        return;
+    for ( i = 0; i < sizeof( names ) / sizeof( names[0] ); i++ ) {
+        size_t length = strlen( names[i] );
+        if ( EqualCasePrefix( p, names[i], length ) &&
+            !is_valid_id_char( p[length] ) ) {
+            p += length;
+            break;
+        }
+    }
+    if ( i == sizeof( names ) / sizeof( names[0] ) )
+        return;
+    args = p;
+    while ( isspace( *args ) )
+        args++;
+    if ( EqualCasePrefix( args, "macro", 5 ) && !is_valid_id_char( args[5] ) )
+        return;
+
+    for ( p = args; *p && *p != ';'; p++ ) {
+        if ( *p == '<' ) {
+            depth++;
+            if ( depth == 1 )
+                seen[1] = FALSE;
+            else if ( depth == 2 )
+                seen[1] = TRUE;
+            continue;
+        }
+        if ( *p == '>' ) {
+            if ( depth > 0 )
+                depth--;
+            if ( depth == 1 )
+                seen[1] = TRUE;
+            else if ( depth == 0 )
+                seen[0] = TRUE;
+            continue;
+        }
+        if ( isspace( *p ) && depth <= 1 ) {
+            char *next = p;
+            while ( isspace( *next ) )
+                next++;
+            if ( seen[depth] && *next && *next != ';' &&
+                !( depth == 1 && *next == '>' ) ) {
+                *p = ',';
+                seen[depth] = FALSE;
+            }
+            continue;
+        }
+        if ( *p == ',' && depth <= 1 ) {
+            seen[depth] = FALSE;
+            continue;
+        }
+        if ( depth <= 1 )
+            seen[depth] = TRUE;
+    }
+}
+
 /* WriteCodeLabel() - called by
  * - PreprocessLine()
  * - ExpandToken()
@@ -92,6 +197,7 @@ int PreprocessLine( char *line, struct asm_tok tokenarray[] )
     ModuleInfo.CurrComment = NULL;
     /* v2.06: moved here from Tokenize() */
     ModuleInfo.line_flags = 0;
+    NormalizeMasm51StructuredArgs( line );
     /* Token_Count is the number of tokens scanned */
     Token_Count = Tokenize( line, 0, tokenarray, TOK_DEFAULT );
 
